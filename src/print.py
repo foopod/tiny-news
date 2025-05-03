@@ -5,7 +5,7 @@ import requests
 import json
 import pandas as pd
 
-
+from util import letters_day
 from puzzle import create_puzzle
 
 def get_weather():
@@ -25,14 +25,17 @@ def get_weather():
     print(data)
 
     df = pd.DataFrame({
-        'temps': data.hourly.temperature_2m,
-        'rain': data.hourly.precipitation
-        }, index=data.hourly.time)
+        'temps': data["hourly"]["temperature_2m"],
+        'rain': data["hourly"]["precipitation"]
+    }, index=data["hourly"]["time"])
+
+    
 
     print(df)
-    df.plot.line()
-
-    return json.loads(response)
+    df.index.map(letters_day)
+    
+    chart = df.plot.line()
+    chart.figure.savefig('weather.png')
 
 def print_newsletter():
     today = datetime.today()
@@ -61,3 +64,6 @@ def print_puzzle():
     lines = textwrap.wrap(desc, 48)
     for line in lines :
         p.textln(line)
+
+
+get_weather()
