@@ -1,10 +1,38 @@
-from escpos.printer import Usb
-from datetime import datetime
-import textwrap
+# from escpos.printer import Usb
+from datetime import datetime, timedelta
+# import textwrap
+import requests
+import json
+import pandas as pd
+
 
 from puzzle import create_puzzle
 
+def get_weather():
+    now = datetime.today()
 
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": -37.7833,
+        "longitude": 175.2833,
+        "hourly": ["temperature_2m", "precipitation"],
+        "timezone": "Pacific/Auckland",
+        "start_date": now.strftime('%Y-%m-%d'),
+        "end_date": (now + timedelta(days=4)).strftime('%Y-%m-%d')
+    }
+    response = requests.get(url, params=params)
+    data = response.json()
+    print(data)
+
+    df = pd.DataFrame({
+        'temps': data.hourly.temperature_2m,
+        'rain': data.hourly.precipitation
+        }, index=data.hourly.time)
+
+    print(df)
+    df.plot.line()
+
+    return json.loads(response)
 
 def print_newsletter():
     today = datetime.today()
