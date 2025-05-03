@@ -1,6 +1,5 @@
 import random
 from PIL import Image, ImageDraw, ImageFont
-from print import print_puzzle
 
 # Word list
 words = [
@@ -86,9 +85,11 @@ def draw(word, output_file='puzzle.png'):
     image.save(output_file)
     print(f"Created: {output_file}")
 
-if __name__ == '__main__':
-    import math
+def create_puzzle():
     word = get_random_word(words)
     draw(word)
-    print_puzzle()
+
+if __name__ == '__main__':
+    import math
+    
     print("done")

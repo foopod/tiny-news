@@ -1,11 +1,17 @@
 from escpos.printer import Usb
 import textwrap
 
+from puzzle import create_puzzle
+
 title = "How to play:\n"
 desc = "Place a letter into the blank space in such a way that it completes the word. The word can start in any position and could go in either direction."
 
 
-def print_puzzle():
+def print_newsletter():
+    today = 
+
+    create_puzzle()
+
     """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88III) """
     p = Usb(0x04b8, 0x0e28, 0)
     p.set(custom_size=True, width=2, height=2)
