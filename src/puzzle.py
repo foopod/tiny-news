@@ -1,4 +1,5 @@
 import random
+import math
 from PIL import Image, ImageDraw, ImageFont
 
 # Word list
@@ -8,7 +9,20 @@ words = [
     "bicycles", "magazine", "campfire", "pineapple", "airplane", "umbrella", "vacation",
     "laughter", "snowfall", "reindeer", "necklace", "treasure", "avocados", "baseball",
     "skylight", "password", "birthday", "storybook", "volcanoes", "headphones", "telescope",
-    "drifting", "brilliant", "mystical", "gardener", "spectrum"
+    "drifting", "brilliant", "mystical", "gardener", "spectrum", "abdominal", "abrasive", "abundance",
+    "accident", "activate", "adjacent", "aircraft", "alligator", "ambition", "amphibian", "amusement",
+    "analogy", "ancestral", "androgyny", "annotate", "accusation", "relevancy", "companion", "sedative",
+    "marinate", "redirection", "perambulate", "benevolence", "complaint", "reschedule", "aneurism",
+    "backstage", "badminton", "balcony", "beguiling", "blemish", "bribery", "brutalism", "chocolate",
+    "cabinet", "cabaret", "caffeine", "cannibal", "capitalism", "cardiology", "cavernous", "circumvent",
+    "collapse", "corduroy", "crucible", "cumulative", "dalmatian", "daydream", "debatable", "declassified",
+    "denomination", "deprecation", "descendant", "dietitian", "digression", "dreadful", "dungeon",
+    "eccentric", "editorial", "education", "egomania", "emphatic", "emporium", "endemic", "endorsement",
+    "enhancement", "equation", "expiry", "familiar", "feminism", "fermented", "fierceness", "firmament",
+    "flamboyant", "floatation", "florist", "fogginess", "foreboding", "fundamental", "galavant", 
+    "galvanised", "gardener", "gazebo", "gelatinous", "glimmered", "glucose", "gorgeous", "governance",
+    "haunting", "hairspray", "hallucinate", "heftiness", "herbalism", "hindrance", "historian",
+    "identity", "idyllic", "ignorant", "illegitimate", "imbalance", "immersion", "incognito"
 ]
 
 # Scrabble scores

@@ -1,2 +1,4 @@
 pillow
 escpos
+requests
+xmltodict

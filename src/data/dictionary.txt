@@ -34822,7 +34822,7 @@ celibatory
 celiectasia
 celiectomy
 celiemia
-celiitis
+celiitiscavernous
 celiocele
 celiocyesis
 celiodynia
@@ -78778,7 +78778,7 @@ foretrace
 foretrysail
 foreturn
 foretype
-foreuse
+foreuseforboding
 foreutter
 forevalue
 forever
