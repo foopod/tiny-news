@@ -1,5 +1,6 @@
 import random
 import math
+from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 
 # Word list
@@ -94,12 +95,13 @@ def draw(word, output_file='puzzle.png'):
 
         draw.text((x - offset_x, y - offset_y), letter, font=font, fill='black')
 
-
-
-    image.save(output_file)
+    bw_image = image.convert('1')
+    bw_image.save(output_file)
     print(f"Created: {output_file}")
 
 def create_puzzle():
+    today_date = datetime.now().strftime('%Y-%m-%d')
+    random.seed(today_date)
     word = get_random_word(words)
     draw(word)
 

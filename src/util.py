@@ -16,7 +16,9 @@ def get_weather():
         "latitude": -37.7833,
         "longitude": 175.2833,
         "daily": ["precipitation_sum", "temperature_2m_max", "temperature_2m_min", "weather_code"],
-        "timezone": "Pacific/Auckland"
+        "timezone": "Pacific/Auckland",
+        "forecast_days": 7,
+        "past_days": 0
     }
     response = requests.get(url, params=params)
     data = response.json()
