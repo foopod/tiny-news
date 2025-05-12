@@ -2,3 +2,4 @@ pillow
 escpos
 requests
 xmltodict
+pygame

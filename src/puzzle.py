@@ -75,7 +75,7 @@ def draw(word, output_file='puzzle.png'):
     radius = len(word) * 18
 
     bbox = [size / 2 - radius, size / 2 - radius, size / 2 + radius, size / 2 + radius]
-    draw.ellipse(bbox, outline='black', width=1, fill='black')
+    draw.ellipse(bbox, outline='black', width=2, fill='white')
 
     for i, letter in enumerate(shuffled):
         theta = angle_step * i * (math.pi / 180)
@@ -100,7 +100,7 @@ def draw(word, output_file='puzzle.png'):
     print(f"Created: {output_file}")
 
 def create_puzzle():
-    today_date = datetime.now().strftime('%Y-%m-%d')
+    today_date = datetime.now().strftime('%d-%m-%Y')
     random.seed(today_date)
     word = get_random_word(words)
     draw(word)

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import requests
 
+
 DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 
 def letters_day(date):
@@ -58,3 +59,19 @@ def map_weather_code(code):
     }
     
     return weather_mapping.get(code, "Unknown weather code")
+
+
+def print_heading(p, header):
+    p.set(custom_size=True, width=2, height=2, invert=True)
+    p.text(center_pad(header, 24))
+    p.set(custom_size=True, width=1, height=1, invert=False)
+
+def center_pad(text, column_width):
+    if column_width <= len(text):
+        return text  # No padding needed or possible
+
+    total_padding = column_width - len(text)
+    left_padding = total_padding // 2
+    right_padding = total_padding - left_padding
+
+    return ' ' * left_padding + text + ' ' * right_padding

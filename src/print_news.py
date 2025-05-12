@@ -2,34 +2,35 @@ from escpos.printer import Usb
 from datetime import datetime
 import textwrap
 
+from puzzle_api import puzzle_from_api
 from puzzle import create_puzzle
-from util import get_weather, map_weather_code
+from util import get_weather, map_weather_code, center_pad, print_heading
 from rss import NewsType, getRSS
 import json
 
 def print_newsletter():
-
     debug = False
-    
+    create_puzzle()
     
 
     if not debug:
         """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88III) """
         p = Usb(0x04b8, 0x0e28, 0)
+        # p._raw(b'\x1B\x74\x00') 
     else:
         p = None
 
+    # p.text("Temp: 25°C\n")
     print_header(p, debug)
     print_news(p, NewsType.LOCAL, debug)
-    p.print_and_feed(1)
     print_news(p, NewsType.WORLD, debug)
-    p.print_and_feed(1)
     print_weather(p, debug)
-    p.print_and_feed(1)
+    puzzle_from_api(p)
     if not debug:
-        print_puzzle(p)
+        # print_puzzle(p)
         p.cut()
-
+        p.close()
+    
 def escpos_row(row, widths):
     padded = [str(col)[:w].ljust(w) for col, w in zip(row, widths)]
     return "".join(padded)
@@ -46,18 +47,17 @@ def print_news(p, url, debug):
     if debug:
         print("World News" if url == NewsType.WORLD else "Local News")
     else:
-        p.set(custom_size=True, width=2, height=2)
-        p.textln("World News" if url == NewsType.WORLD else "Local News")
-        p.print_and_feed(1)
+        p.set(custom_size=True, width=2, height=2, invert=True)
+        p.textln(center_pad("World News", 24) if url == NewsType.WORLD else center_pad("Local News", 24))
 
     response = getRSS(url)
     articles = response["rss"]["channel"]["item"]
-    for article in articles[:3]:
+    for article in articles[:4]:
         if debug:
             print(article["title"])
             print(article["description"])
         else:
-            p.set(bold=True, custom_size=True, width=1, height=1)
+            p.set(bold=True, custom_size=True, width=1, height=1, invert=False)
             lines = textwrap.wrap(article["title"], 48)
             for line in lines :
                 p.textln(line)
@@ -66,18 +66,13 @@ def print_news(p, url, debug):
             lines = textwrap.wrap(article["description"], 48)
             for line in lines :
                 p.textln(line)
-            p.print_and_feed(1)
     
 
 def print_weather(p, debug):
-
     if debug:
         print("Weather")
     else:
-        p.set(custom_size=True, width=2, height=2)
-        p.textln("Weather")
-        p.print_and_feed(1)
-        p.set(custom_size=True, width=1, height=1)
+        print_heading(p, "Weather")
 
     weather_data = get_weather()
     widths = [8, 14, 10, 8, 8]
@@ -90,10 +85,12 @@ def print_weather(p, debug):
         # p.software_columns(headers, widths, aligns)
         p.set(bold=True, underline=1)
         p.text(escpos_row(headers, widths) + "\n")
-        p.set(bold=False, underline=0)
+        p.set(bold=False, underline=0, custom_size=False, width=1, height=1)
 
     daily = weather_data['daily']
     units = weather_data['daily_units']
+    # units["temperature_2m_max"] = "°C"
+    # units["temperature_2m_min"] = chr(248)
     daily["temperature_2m_max"] = left_pad_strings(daily["temperature_2m_max"])
     daily["temperature_2m_min"] = left_pad_strings(daily["temperature_2m_min"])
     for i in range(len(daily["temperature_2m_max"])):
@@ -110,31 +107,26 @@ def print_weather(p, debug):
             # p.software_columns(weather_line, widths, aligns)
             p.text(escpos_row(weather_line, widths) + "\n")
 
-
 def print_header(p, debug):
     today = datetime.today()
     if debug:
         print(today.strftime('%A %d, %B %Y'))
     else:
         # p.image("images/logo.png")
-        p.set(custom_size=True, width=2, height=2)
-        p.textln(today.strftime('%A %d, %B %Y'))
-        p.print_and_feed(2)
+        print_heading(p, today.strftime('%A %d, %B %Y'))
 
 def print_puzzle(p):
     title = "How to play:\n"
     desc = "Place a letter into the blank space in such a way that it completes the word. The word can start in any position and could go in either direction."
 
-    p.set(custom_size=True, width=2, height=2)
-    p.print_and_feed(1)
-    p.text("Daily Wordwheel")
-    p.print_and_feed(1)
+    print_heading(p, "Daily Wordwheel")
     p.image("puzzle.png", impl='bitImageRaster')
+    p.set(bold=True)
     p.text(title)
-    p.print_and_feed(1)
-    p.set(custom_size=True, width=1, height=1)
+    p.set(bold=False)
     lines = textwrap.wrap(desc, 48)
     for line in lines :
         p.textln(line)
 
-print_newsletter()
+if __name__ == "__main__":
+    print_newsletter()
