@@ -107,5 +107,5 @@ def create_puzzle():
 
 if __name__ == '__main__':
     import math
-    
+    create_puzzle()
     print("done")

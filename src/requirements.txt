@@ -3,3 +3,4 @@ escpos
 requests
 xmltodict
 pygame
+python-ulid

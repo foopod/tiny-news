@@ -3,10 +3,39 @@ from datetime import datetime
 import textwrap
 
 from puzzle_api import puzzle_from_api
+from print_ships import print_ship
 from puzzle import create_puzzle
 from util import get_weather, map_weather_code, center_pad, print_heading
 from rss import NewsType, getRSS
 import json
+
+def print_rick_roll():
+    p = Usb(0x04b8, 0x0e28, 0)
+    # https://www.youtube.com/watch?v=dQw4w9WgXcQ
+    p.qr("https://www.youtube.com/watch?v=dQw4w9WgXcQ", size=16)
+    p.cut()
+    p.close()
+
+def print_weather_only():
+    p = Usb(0x04b8, 0x0e28, 0)
+    # https://www.youtube.com/watch?v=dQw4w9WgXcQ
+    print_weather(p)
+    p.cut()
+    p.close()
+
+def puzzle_only():
+    p = Usb(0x04b8, 0x0e28, 0)
+    # https://www.youtube.com/watch?v=dQw4w9WgXcQ
+    puzzle_from_api(p)
+    p.cut()
+    p.close()
+
+def ship_only():
+    p = Usb(0x04b8, 0x0e28, 0)
+    print_ship(p)
+    p.cut()
+    p.close()
+
 
 def print_newsletter():
     debug = False
@@ -21,13 +50,19 @@ def print_newsletter():
         p = None
 
     # p.text("Temp: 25°C\n")
+    # print_ship(p)
     print_header(p, debug)
-    print_news(p, NewsType.LOCAL, debug)
-    print_news(p, NewsType.WORLD, debug)
+    print_news(p, NewsType.LOCAL)
+    # print_news(p, NewsType.WORLD)
+    # print_news_combined(p, [NewsType.SCIENCE, NewsType.TECH])
     print_weather(p, debug)
     puzzle_from_api(p)
     if not debug:
         # print_puzzle(p)
+        p.print_and_feed(1)
+        print_heading(p, f"Feedback")
+        p.text('    ')
+        p.qr("https://forms.gle/FJkGxqHVShBy3kD27", size=8)
         p.cut()
         p.close()
     
@@ -43,32 +78,41 @@ def left_pad_strings(strings: list[str], pad_char: str = " ") -> list[str]:
     max_len = max(len(f"{s}") for s in strings)
     return [f"{s}".rjust(max_len, pad_char) for s in strings]
 
-def print_news(p, url, debug):
-    if debug:
-        print("World News" if url == NewsType.WORLD else "Local News")
-    else:
-        p.set(custom_size=True, width=2, height=2, invert=True)
-        p.textln(center_pad("World News", 24) if url == NewsType.WORLD else center_pad("Local News", 24))
+def print_news_combined(p, newsList):
+    p.set(custom_size=True, width=2, height=2, invert=True)
+    p.textln(center_pad(f"{' & '.join(newsList)} News", 24))
+    for news in newsList:
+        print_news(p, news, False)
 
+def print_news(p, newsType, print_title = True):
+    if newsType == NewsType.WORLD:
+        print_heading(p, "More News")
+        p.print_and_feed(2)
+        lines = textwrap.wrap("Help me find more sources of news. RSS feeds are best, but APIs could also work.", 48)
+        for line in lines :
+            p.textln(line)
+        p.print_and_feed(1)
+        return
+
+    if print_title:
+        p.set(custom_size=True, width=2, height=2, invert=True)
+        p.textln(center_pad(f"{newsType} News", 24))
+
+    url = NewsType.NewsMap[newsType]
     response = getRSS(url)
     articles = response["rss"]["channel"]["item"]
-    for article in articles[:4]:
-        if debug:
-            print(article["title"])
-            print(article["description"])
-        else:
-            p.set(bold=True, custom_size=True, width=1, height=1, invert=False)
-            lines = textwrap.wrap(article["title"], 48)
-            for line in lines :
-                p.textln(line)
-
-            p.set(bold=False, custom_size=True, width=1, height=1)
-            lines = textwrap.wrap(article["description"], 48)
-            for line in lines :
-                p.textln(line)
+    for article in articles[:5]:
+        p.set(bold=True, custom_size=True, width=1, height=1, invert=False)
+        lines = textwrap.wrap(article["title"], 48)
+        for line in lines :
+            p.textln(line)
+        p.set(bold=False, custom_size=True, width=1, height=1)
+        lines = textwrap.wrap(article["description"], 48)
+        for line in lines :
+            p.textln(line)
     
 
-def print_weather(p, debug):
+def print_weather(p, debug = False):
     if debug:
         print("Weather")
     else:
@@ -113,7 +157,9 @@ def print_header(p, debug):
         print(today.strftime('%A %d, %B %Y'))
     else:
         # p.image("images/logo.png")
-        print_heading(p, today.strftime('%A %d, %B %Y'))
+        p.set(align="center")
+        p.textln(today.strftime('%A %d, %B %Y'))
+        p.set(align="left")
 
 def print_puzzle(p):
     title = "How to play:\n"
