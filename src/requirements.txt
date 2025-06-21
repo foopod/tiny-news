@@ -4,3 +4,4 @@ requests
 xmltodict
 pygame
 python-ulid
+python-chess

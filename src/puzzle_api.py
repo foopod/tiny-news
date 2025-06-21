@@ -6,10 +6,11 @@ import json
 import textwrap
 
 from util import center_pad, print_heading
+from puzzle import draw
+from chess_puzzle import render_chess
 
 puzzlemap = {
     'sudoku': 'https://shadify.yurace.pro/api/sudoku/generator',
-    'takuzu': 'https://api.razzlepuzzles.com/zuzus',
     'wordsearch': 'https://shadify.yurace.pro/api/wordsearch/generator',
     'anagram': 'https://shadify.yurace.pro/api/anagram/generator'
 }
@@ -18,6 +19,7 @@ description_map = {
     'takuzu': 'Each column and each row must be unique. Each row and each column must have an equal number of x and o. No more than two x or o in a line.',
     'wordsearch': 'The aim of the puzzle is to find and mark all the words hidden in the grid. The words can be placed horizontally, vertically or diagonally.',
     'anagram': 'Create as many words as you can using only the letters in the word below.',
+    'chess': 'Standard chess rules apply. Black has just had their turn, can white find a way to checkmate in just a single move?',
     'wordwheel': 'Place a letter into the blank space in such a way that it completes the word. The word can start in any position and could go in either direction.'
 }
 takuzu_map = {
@@ -26,37 +28,14 @@ takuzu_map = {
 }
 
 def get_random_puzzle():
-    options = ['sudoku', 'takuzu', 'wordsearch', 'anagram']
+    options = ['sudoku', 'wordsearch', 'anagram']
     puzzle_type = random.choice(options)
     puzzle_type = 'wordsearch'
     
     params = {}
-    if(puzzle_type == 'takuzu'):
-        params = {
-            'om': 'false',
-            'locale': 'en&z',
-            'z': datetime.today().strftime("%m%d%y-1")
-        }
     # TODO add params based on puzzle type
     response = requests.get(puzzlemap[puzzle_type], params=params)
     data = response.json()
-    if puzzle_type == 'takuzu':
-        cols = random.choice([4, 6, 8])
-        puzzle = data[cols].split("::")[2]
-        task = []
-        offset = 0
-        for i in range(cols):
-            for j in range(cols):
-                row = []
-                value = puzzle[i+j*cols]
-                row.append(value if value != '.' else 'x')
-            task.append(row)
-            
-
-        data = {
-            'size': cols,
-            'task': task
-        }
     return {
         'puzzle_type': puzzle_type,
         'data': data
@@ -94,8 +73,12 @@ def print_puzzle(puzzle_dict, printer):
         lines = textwrap.wrap(puzzle_data["more_info"], 48)
         for line in lines :
             printer.textln(line)
+    elif puzzle_type == 'chess':
+        render_chess(puzzle_data["task"])
+        printer.image('puzzle.png', impl='graphics', center=True)
     elif puzzle_type == 'wordwheel':
-        printer.image(puzzle_data["task"], impl='graphics', center=True)
+        draw(puzzle_data["task"], output_file="puzzle.png")
+        printer.image('puzzle.png', impl='graphics', center=True)
     elif puzzle_type == 'takuzu':
         takuzu_data = []
         for row in puzzle_data["task"]:
@@ -121,6 +104,7 @@ def puzzle_from_api(printer):
     now = datetime.today()
     date_format = "%Y-%m-%d"
     d = now.strftime(date_format)
+    d = '2025-06-27'
     # d="2025-05-14"
     filepath = f"puzzles/{d}.json"
     puzzle_dict = {}

@@ -23,7 +23,11 @@ words = [
     "flamboyant", "floatation", "florist", "fogginess", "foreboding", "fundamental", "galavant", 
     "galvanised", "gardener", "gazebo", "gelatinous", "glimmered", "glucose", "gorgeous", "governance",
     "haunting", "hairspray", "hallucinate", "heftiness", "herbalism", "hindrance", "historian",
-    "identity", "idyllic", "ignorant", "illegitimate", "imbalance", "immersion", "incognito"
+    "identity", "idyllic", "ignorant", "illegitimate", "imbalance", "immersion", "incognito", "indicative",
+    "keystone", "kidnapper", "kilolitre", "kindergarten", "lacerate", "language", "legislation", "levitate",
+    "logistics", "lubricate", "maelstrom", "malcontent", "messenger", "modernise", "narcissist", 
+    "nocturnal", "numerous", "obstinate", "olfactory", "organism", "palatable", "pantomime", "peppercorn",
+    ""
 ]
 
 # Scrabble scores
@@ -43,6 +47,7 @@ def top_scoring_letter(word):
     return max(word.lower(), key=lambda letter: scrabble_scores.get(letter, 0))
 
 def shuffle(word):
+    random.seed(datetime.now().strftime("%Y%m%d"))
     word = word.lower()
     top_letter = top_scoring_letter(word)
     index = word.find(top_letter)
@@ -60,7 +65,7 @@ def shuffle(word):
 
 def draw(word, output_file='puzzle.png'):
     shuffled = shuffle(word)
-    size = 500
+    size = 575
     font_size = 56
     image = Image.new('RGB', (size, size), color='white')
     draw = ImageDraw.Draw(image)

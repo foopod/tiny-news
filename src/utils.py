@@ -1,7 +1,10 @@
 import json
 from ulid import ULID
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import shutil
+import random
+
 
 def process_zuzu():
     # Load JSON data from a file
@@ -41,8 +44,53 @@ def process_zuzu_puzzles():
     current_date = datetime.now()
     unused = os.listdir('zuzu')
     while(len(unused) > 0):
-        next_date = None
-        while (not next_date):
-            if(current_date.weekday() == 0): # Monday
-                next_date = current_date
+        is_monday = False
+        while (not is_monday):
             current_date += timedelta(days=1)
+            if(current_date.weekday() == 0): # Monday
+                is_monday = True
+        
+        new_file_name = current_date.strftime("%Y-%m-%d")
+        file_to_copy = random.choice(unused)
+        shutil.copyfile(f"zuzu/{file_to_copy}", f"puzzles/{new_file_name}.json")
+        unused.remove(file_to_copy)
+
+def process_wordwheels():
+    words = ["abdominal", "abrasive", "abundance",
+        "accident", "activate", "adjacent", "aircraft", "alligator", "ambition", "amphibian", "amusement",
+        "analogy", "ancestral", "androgyny", "annotate", "accusation", "relevancy", "companion", "sedative",
+        "marinate", "redirection", "perambulate", "benevolence", "complaint", "reschedule", "aneurism",
+        "backstage", "badminton", "balcony", "beguiling", "blemish", "bribery", "brutalism", "chocolate",
+        "cabinet", "cabaret", "caffeine", "cannibal", "capitalism", "cardiology", "cavernous", "circumvent",
+        "collapse", "corduroy", "crucible", "cumulative", "dalmatian", "daydream", "debatable", "declassified",
+        "denomination", "deprecation", "descendant", "dietitian", "digression", "dreadful", "dungeon",
+        "eccentric", "editorial", "education", "egomania", "emphatic", "emporium", "endemic", "endorsement",
+        "enhancement", "equation", "expiry", "familiar", "feminism", "fermented", "fierceness", "firmament",
+        "flamboyant", "floatation", "florist", "fogginess", "foreboding", "fundamental", "galavant", 
+        "galvanised", "gardener", "gazebo", "gelatinous", "glimmered", "glucose", "gorgeous", "governance",
+        "haunting", "hairspray", "hallucinate", "heftiness", "herbalism", "hindrance", "historian",
+        "identity", "idyllic", "ignorant", "illegitimate", "imbalance", "immersion", "incognito", "indicative",
+        "keystone", "kidnapper", "kilolitre", "kindergarten", "lacerate", "language", "legislation", "levitate",
+        "logistics", "lubricate", "maelstrom", "malcontent", "messenger", "modernise", "narcissist", 
+        "nocturnal", "numerous", "obstinate", "olfactory", "organism", "palatable", "pantomime", "peppercorn",
+        "quietness", "queried", "quaternion", "rancorous", "reciprocal", "repeatedly", "salacious", 
+        "scientific", "sentinel", "sinusoid"]
+    print(len(words))
+    current_date = datetime.now()
+    while(len(words) > 0):
+        is_wednesday = False
+        while (not is_wednesday):
+            current_date += timedelta(days=1)
+            if(current_date.weekday() == 2): # Wednesday
+                is_wednesday = True
+        
+        new_file_name = current_date.strftime("%Y-%m-%d")
+        word_used = random.choice(words)
+        json_data = {"puzzle_type": "wordwheel", "data": {"task": word_used}}
+        
+        with open(f"puzzles/{new_file_name}.json", 'w') as file:
+            file.write(json.dumps(json_data))
+        words.remove(word_used)
+
+
+process_wordwheels()
