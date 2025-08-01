@@ -63,6 +63,8 @@ clock = pygame.time.Clock()
 
 while running:
     screen.fill((135, 206, 235))  # Fill with blue
+    today = tiny_font.render(datetime.today().strftime('%A %d, %B %Y'), True, black)
+    
 
     # Blit image and text
     # screen.blit(image, (100, 100))  # Position image at (100, 100)

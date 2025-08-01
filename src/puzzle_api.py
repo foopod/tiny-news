@@ -8,6 +8,7 @@ import textwrap
 from util import center_pad, print_heading
 from puzzle import draw
 from chess_puzzle import render_chess
+from sudoku import render_sudoku
 
 puzzlemap = {
     'sudoku': 'https://shadify.yurace.pro/api/sudoku/generator',
@@ -15,7 +16,7 @@ puzzlemap = {
     'anagram': 'https://shadify.yurace.pro/api/anagram/generator'
 }
 description_map = {
-    'sudoku': 'Fill free cells with numbers from 1 to 9 so that in each row, each column and each small 3×3 square each digit occurs only once.',
+    'sudoku': 'Fill free cells with numbers from 1 to 9 so that in each row, each column and each small 3 by 3 square each digit occurs only once.',
     'takuzu': 'Each column and each row must be unique. Each row and each column must have an equal number of x and o. No more than two x or o in a line.',
     'wordsearch': 'The aim of the puzzle is to find and mark all the words hidden in the grid. The words can be placed horizontally, vertically or diagonally.',
     'anagram': 'Create as many words as you can using only the letters in the word below.',
@@ -30,7 +31,7 @@ takuzu_map = {
 def get_random_puzzle():
     options = ['sudoku', 'wordsearch', 'anagram']
     puzzle_type = random.choice(options)
-    puzzle_type = 'wordsearch'
+    puzzle_type = 'anagram'
     
     params = {}
     # TODO add params based on puzzle type
@@ -67,7 +68,8 @@ def print_puzzle(puzzle_dict, printer):
         printer.textln(f"Goal: {len(puzzle_data["words"])} words")
         printer.textln(f"Longest: {len(max(puzzle_data["words"], key=len))} letters")
     elif puzzle_type == 'sudoku':
-        print_grid(printer, puzzle_data["task"])
+        render_sudoku(puzzle_data["task"])
+        printer.image('puzzle.png', impl='graphics', center=True)
     elif puzzle_type == 'custom':
         printer.image(puzzle_data["task"], impl='graphics', center=True)
         lines = textwrap.wrap(puzzle_data["more_info"], 48)
@@ -104,7 +106,6 @@ def puzzle_from_api(printer):
     now = datetime.today()
     date_format = "%Y-%m-%d"
     d = now.strftime(date_format)
-    d = '2025-06-27'
     # d="2025-05-14"
     filepath = f"puzzles/{d}.json"
     puzzle_dict = {}

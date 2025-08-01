@@ -56,7 +56,10 @@ def print_newsletter():
     # print_news(p, NewsType.WORLD)
     # print_news_combined(p, [NewsType.SCIENCE, NewsType.TECH])
     print_weather(p, debug)
-    puzzle_from_api(p)
+    try:
+        puzzle_from_api(p)
+    except Exception as e:
+        print('oh no')
     if not debug:
         # print_puzzle(p)
         p.print_and_feed(1)
