@@ -3,5 +3,4 @@ escpos
 requests
 xmltodict
 pygame
-python-ulid
 cairo-svg

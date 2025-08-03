@@ -1,7 +1,7 @@
 import pygame
 import sys
 from datetime import datetime
-from print_news import print_newsletter, print_rick_roll, puzzle_only,print_weather_only, ship_only
+from tiny_news import print_newsletter, print_rick_roll, puzzle_only,print_weather_only, ship_only
 import time
 
 # Initialize pygame

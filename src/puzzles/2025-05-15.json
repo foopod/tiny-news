@@ -1,3 +1,0 @@
-{"puzzle_type": "custom", 
-"data": {"more_info": "The Miracle by Mitchell Lee", "type": "sudoku", "description":"Normal sudoku rules apply. Any two cells separated by a knight's move or king's move (in chess) cannot contain the same digit. Any two orthogonally adjacent cells cannot contain consecutive digits.",
-"task": "images/miracle-sudoku.jpg"}}

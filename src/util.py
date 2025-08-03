@@ -75,3 +75,7 @@ def center_pad(text, column_width):
     right_padding = total_padding - left_padding
 
     return ' ' * left_padding + text + ' ' * right_padding
+
+def escpos_row(row, widths):
+    padded = [str(col)[:w].ljust(w) for col, w in zip(row, widths)]
+    return "".join(padded)
