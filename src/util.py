@@ -79,3 +79,11 @@ def center_pad(text, column_width):
 def escpos_row(row, widths):
     padded = [str(col)[:w].ljust(w) for col, w in zip(row, widths)]
     return "".join(padded)
+
+def date_to_weekday(date_str: str) -> str:
+    date_obj = datetime.strptime(date_str, "%Y-%m-%d")
+    return date_obj.strftime("%a %d")
+
+def left_pad_strings(strings: list[str], pad_char: str = " ") -> list[str]:
+    max_len = max(len(f"{s}") for s in strings)
+    return [f"{s}".rjust(max_len, pad_char) for s in strings]
