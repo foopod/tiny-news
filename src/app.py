@@ -1,7 +1,7 @@
 import pygame
 import sys
 from datetime import datetime
-from tiny_news import print_newsletter, print_rick_roll, puzzle_only,print_weather_only, ship_only
+from tiny_news import print_newsletter, print_rick_roll,print_weather_only
 import time
 
 # Initialize pygame
@@ -10,16 +10,6 @@ pygame.init()
 # Get screen info for fullscreen
 infoObject = pygame.display.Info()
 screen = pygame.display.set_mode((infoObject.current_w, infoObject.current_h), pygame.FULLSCREEN)
-
-
-# Load an image
-# Make sure 'image.png' is in the same folder
-try:
-    image = pygame.image.load('images/jupiter.png')
-except pygame.error as e:
-    print(f"Unable to load image: {e}")
-    pygame.quit()
-    sys.exit()
 
 # Set up font and text
 # font = pygame.font.SysFont("None", 120)
@@ -101,14 +91,10 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_k:
                 running = False
-            elif event.key == pygame.K_p:
-                puzzle_only()
             elif event.key == pygame.K_w:
                 print_weather_only()
             elif event.key == pygame.K_ESCAPE:
                 print_rick_roll()
-            elif event.key == pygame.K_s:
-                ship_only()
             else:
                 on_key_press(event.key)
             

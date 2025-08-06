@@ -28,10 +28,11 @@ def print_newsletter():
 
     print_header(p)
     print_news(p, NewsType.LOCAL)
-    print_weather(p, debug)
+    print_weather(p)
     try:
         puzzle_from_api(p)
     except Exception as e:
+        print(e)
         print('oh no')
 
     p.print_and_feed(1)
@@ -39,6 +40,8 @@ def print_newsletter():
     p.text('    ')
     p.qr("https://forms.gle/FJkGxqHVShBy3kD27", size=8)
     p.cut()
+    #     print(e)
+    #     print('oh no')
     p.close()
 
 def print_news(p, newsType, print_title = True):
@@ -69,24 +72,18 @@ def print_news(p, newsType, print_title = True):
             p.textln(line)
     
 
-def print_weather(p, debug = False):
-    if debug:
-        print("Weather")
-    else:
-        print_heading(p, "Weather")
+def print_weather(p):
+    print_heading(p, "Weather")
 
     weather_data = get_weather()
     widths = [8, 14, 10, 8, 8]
     aligns = ['left', 'center', 'right', 'right', 'right']
     headers = ["Day", "Summary", "Rain", "Low", "High"]
 
-    if debug:
-        print(headers)
-    else:
-        # p.software_columns(headers, widths, aligns)
-        p.set(bold=True, underline=1)
-        p.text(escpos_row(headers, widths) + "\n")
-        p.set(bold=False, underline=0, custom_size=False, width=1, height=1)
+    # p.software_columns(headers, widths, aligns)
+    p.set(bold=True, underline=1)
+    p.text(escpos_row(headers, widths) + "\n")
+    p.set(bold=False, underline=0, custom_size=False, width=1, height=1)
 
     daily = weather_data['daily']
     units = weather_data['daily_units']
@@ -102,11 +99,8 @@ def print_weather(p, debug = False):
             f"{daily['temperature_2m_min'][i]}{units['temperature_2m_min']}", 
             f"{daily['temperature_2m_max'][i]}{units['temperature_2m_max']}",
         ]
-        if debug:
-            print(weather_line)
-        else:
-            # p.software_columns(weather_line, widths, aligns)
-            p.text(escpos_row(weather_line, widths) + "\n")
+        # p.software_columns(weather_line, widths, aligns)
+        p.text(escpos_row(weather_line, widths) + "\n")
 
 def print_header(p):
     today = datetime.today()

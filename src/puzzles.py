@@ -47,8 +47,8 @@ def print_puzzle(puzzle_dict, printer):
     puzzle_type = puzzle_dict["puzzle_type"]
     puzzle_data = puzzle_dict["data"]
 
-    desc = puzzle_data["description"]
-    print_heading(printer, f"Puzzle - {puzzle_data["type"].capitalize()}")
+    desc = description_map[puzzle_type]
+    print_heading(printer, f"Puzzle - {puzzle_type.capitalize()}")
         
     lines = textwrap.wrap(desc, 48)
     for line in lines :
@@ -68,7 +68,7 @@ def print_puzzle(puzzle_dict, printer):
     elif puzzle_type == 'crossword':
         render_crossword(puzzle_data["width"], puzzle_data["height"], puzzle_data["empties"], puzzle_data["labels"])
         printer.image('puzzle.png', impl='graphics', center=True)
-        print_crossword_clues(puzzle_data["clues"])
+        print_crossword_clues(printer, puzzle_data["clues"])
     elif puzzle_type == 'chess':
         render_chess(puzzle_data["task"])
         printer.image('puzzle.png', impl='graphics', center=True)
@@ -87,13 +87,13 @@ def print_puzzle(puzzle_dict, printer):
         for line in lines :
             printer.textln(line)
 
-def print_crossword_clues(clues):
+def print_crossword_clues(printer, clues):
     printer.set(custom_size=True, height=2, width=2, underline=True)
     printer.textln('Across')
     printer.set(custom_size=False, height=1, width=1, underline=False)
     for clue in clues['across']:
         printer.textln(clue['label'] + ' ' + clue['text'])
-        printer.set(custom_size=True, height=2, width=2, underline=True)
+    printer.set(custom_size=True, height=2, width=2, underline=True)
     printer.textln('Down')
     printer.set(custom_size=False, height=1, width=1, underline=False)
     for clue in clues['down']:
@@ -111,7 +111,7 @@ def puzzle_from_api(printer):
     now = datetime.today()
     date_format = "%Y-%m-%d"
     d = now.strftime(date_format)
-    # d="2025-05-14"
+    # d="2025-08-05"
     filepath = f"puzzles/{d}.json"
     puzzle_dict = {}
     
@@ -119,10 +119,6 @@ def puzzle_from_api(printer):
         # already exists
         with open(filepath, 'r') as f:
             puzzle_dict = json.load(f)
-    else:
-        puzzle_dict = get_random_puzzle()
-        with open(filepath, 'w') as f:
-            f.writelines(json.dumps(puzzle_dict))
 
     print_puzzle(puzzle_dict, printer)
 
