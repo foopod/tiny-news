@@ -16,7 +16,6 @@ def print_rick_roll():
 
 def print_weather_only():
     p = Usb(0x04b8, 0x0e28, 0)
-    # https://www.youtube.com/watch?v=dQw4w9WgXcQ
     print_weather(p)
     p.cut()
     p.close()
@@ -41,8 +40,6 @@ def print_newsletter():
     p.textln('https://github.com/foopod/tiny-news')
     p.qr("https://github.com/foopod/tiny-news", size=8)
     p.cut()
-    #     print(e)
-    #     print('oh no')
     p.close()
 
 def print_news(p, newsType, print_title = True):
