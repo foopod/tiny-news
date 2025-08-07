@@ -37,8 +37,9 @@ def print_newsletter():
 
     p.print_and_feed(1)
     print_heading(p, f"Feedback")
-    p.text('    ')
-    p.qr("https://forms.gle/FJkGxqHVShBy3kD27", size=8)
+    p.textln('Raise an Issue or Pull Request on Github')
+    p.textln('https://github.com/foopod/tiny-news')
+    p.qr("https://github.com/foopod/tiny-news", size=8)
     p.cut()
     #     print(e)
     #     print('oh no')
