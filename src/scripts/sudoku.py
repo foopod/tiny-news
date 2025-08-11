@@ -17,7 +17,7 @@ def process_sudoku():
         is_thursay = False
         while (not is_thursay):
             current_date += timedelta(days=1)
-            if(current_date.weekday() == 1): # Thusday
+            if(current_date.weekday() == 3): # Thusday
                 is_thursay = True
 
         new_file_name = current_date.strftime("%Y-%m-%d")

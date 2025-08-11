@@ -111,7 +111,7 @@ def puzzle_from_api(printer):
     now = datetime.today()
     date_format = "%Y-%m-%d"
     d = now.strftime(date_format)
-    # d="2025-08-05"
+    # d="2025-08-14"
     filepath = f"puzzles/{d}.json"
     puzzle_dict = {}
     

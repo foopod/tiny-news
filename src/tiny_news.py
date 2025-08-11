@@ -20,6 +20,12 @@ def print_weather_only():
     p.cut()
     p.close()
 
+def print_puzzle_only():
+    p = Usb(0x04b8, 0x0e28, 0)
+    puzzle_from_api(p)
+    p.cut()
+    p.close()
+
 def print_newsletter():
 
     """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88III) """
