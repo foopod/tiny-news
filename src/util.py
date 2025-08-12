@@ -87,3 +87,19 @@ def date_to_weekday(date_str: str) -> str:
 def left_pad_strings(strings: list[str], pad_char: str = " ") -> list[str]:
     max_len = max(len(f"{s}") for s in strings)
     return [f"{s}".rjust(max_len, pad_char) for s in strings]
+
+def unicode_to_ascii(text):
+    # most macrons aren't supported on the printer, so for now we are switching them out
+    mapping = {
+        'ā': 'a', 'Ā': 'A',
+        'ē': 'e', 'Ē': 'E', 
+        'ī': 'i', 'Ī': 'I',
+        'ō': 'o', 'Ō': 'O',
+        'ū': 'u', 'Ū': 'U',
+        'ū̄': 'u', 'Ū̄': 'U'  # double macrons sometimes occur
+    }
+    
+    for maori_char, ascii_char in mapping.items():
+        text = text.replace(maori_char, ascii_char)
+    
+    return text

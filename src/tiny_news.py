@@ -3,7 +3,7 @@ from datetime import datetime
 import textwrap
 
 from puzzles import puzzle_from_api
-from util import get_weather, map_weather_code, center_pad, print_heading, escpos_row, date_to_weekday, left_pad_strings
+from util import get_weather, map_weather_code, center_pad, print_heading, escpos_row, date_to_weekday, left_pad_strings, unicode_to_ascii
 from rss import NewsType, getRSS
 import json
 
@@ -67,11 +67,11 @@ def print_news(p, newsType, print_title = True):
     articles = response["rss"]["channel"]["item"]
     for article in articles[:5]:
         p.set(bold=True, custom_size=True, width=1, height=1, invert=False)
-        lines = textwrap.wrap(article["title"], 48)
+        lines = textwrap.wrap(unicode_to_ascii(article["title"]), 48)
         for line in lines :
             p.textln(line)
         p.set(bold=False, custom_size=True, width=1, height=1)
-        lines = textwrap.wrap(article["description"], 48)
+        lines = textwrap.wrap(unicode_to_ascii(article["description"]), 48)
         for line in lines :
             p.textln(line)
     
