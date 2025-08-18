@@ -5,6 +5,7 @@ import textwrap
 from puzzles import puzzle_from_api
 from util import get_weather, map_weather_code, center_pad, print_heading, escpos_row, date_to_weekday, left_pad_strings, unicode_to_ascii
 from rss import NewsType, getRSS
+from daily_word import print_daily_word
 import json
 
 def print_rick_roll():
@@ -39,7 +40,7 @@ def print_newsletter():
     except Exception as e:
         print(e)
         print('oh no')
-
+    print_daily_word(p)
     p.print_and_feed(1)
     print_heading(p, f"Feedback")
     p.textln('Raise an Issue or Pull Request on Github')

@@ -8,7 +8,7 @@ import json
 
 def get_piece(file_name, size):
     png_data = cairosvg.svg2png(
-        url=f"chess-pieces/{file_name}.svg",
+        url=f"assets/chess-pieces/{file_name}.svg",
         output_width=size,
         output_height=size,
         background_color=None  # Preserve transparency
