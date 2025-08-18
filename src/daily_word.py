@@ -130,5 +130,3 @@ def print_daily_word(printer):
     lines = textwrap.wrap(meaning, 48)
     for line in lines :
         printer.textln(line)
-
-print_daily_word(None)
