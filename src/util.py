@@ -64,7 +64,7 @@ def map_weather_code(code):
 def print_heading(p, header):
     p.set(custom_size=True, width=2, height=2, invert=True)
     p.text(center_pad(header, 24))
-    p.set(custom_size=True, width=1, height=1, invert=False)
+    p.set(custom_size=False, width=1, height=1, invert=False)
 
 def center_pad(text, column_width):
     if column_width <= len(text):

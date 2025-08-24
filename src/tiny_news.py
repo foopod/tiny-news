@@ -27,6 +27,12 @@ def print_puzzle_only():
     p.cut()
     p.close()
 
+def word_only():
+    p = Usb(0x04b8, 0x0e28, 0)
+    print_daily_word(p)
+    p.cut()
+    p.close()
+
 def print_newsletter():
 
     """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88III) """
@@ -40,8 +46,8 @@ def print_newsletter():
     except Exception as e:
         print(e)
         print('oh no')
-    print_daily_word(p)
     p.print_and_feed(1)
+    print_daily_word(p)
     print_heading(p, f"Feedback")
     p.textln('Raise an Issue or Pull Request on Github')
     p.textln('https://github.com/foopod/tiny-news')

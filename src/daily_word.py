@@ -122,8 +122,9 @@ def print_daily_word(printer):
     create_word_card(word_data['text'])
 
     print_heading(printer, f"Daily Word - {language}")
+    printer.print_and_feed()
     printer.image('word.png', impl='graphics', center=True)
-    if word_data['romanization']:
+    if word_data.get('romanization'):
         printer.textln(f"Romanization: {word_data['romanization']}")
     meaning = f"Meaning: {word_data['meaning']}"
 

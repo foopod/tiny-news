@@ -1,7 +1,7 @@
 import pygame
 import sys
 from datetime import datetime
-from tiny_news import print_newsletter, print_rick_roll,print_weather_only, print_puzzle_only
+from tiny_news import print_newsletter, print_rick_roll,print_weather_only, print_puzzle_only, word_only
 import time
 
 # Initialize pygame
@@ -97,6 +97,8 @@ while running:
                 print_rick_roll()
             elif event.key == pygame.K_p:
                 print_puzzle_only()
+            elif event.key == pygame.K_d:
+                word_only()
             else:
                 on_key_press(event.key)
             
