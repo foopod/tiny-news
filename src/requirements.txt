@@ -3,4 +3,4 @@ escpos
 requests
 xmltodict
 pygame
-cairo-svg
+cairosvg
