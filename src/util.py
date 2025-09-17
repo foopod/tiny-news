@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-import requests
+from http_utils import get_cached_json
 
 
 DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
@@ -10,22 +10,23 @@ def letters_day(date):
     return DAYS[d.weekday()]
 
 def get_weather():
-    now = datetime.today()
-
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": -37.7833,
         "longitude": 175.2833,
-        "daily": ["precipitation_sum", "temperature_2m_max", "temperature_2m_min", "weather_code"],
+        "daily": [
+            "precipitation_sum",
+            "temperature_2m_max",
+            "temperature_2m_min",
+            "weather_code",
+        ],
         "timezone": "Pacific/Auckland",
         "forecast_days": 7,
-        "past_days": 0
+        "past_days": 0,
     }
-    response = requests.get(url, params=params)
-    data = response.json()
+    return get_cached_json(url, params)
 
-    return data
-    
+
 def map_weather_code(code):
     weather_mapping = {
         0: "Clear",

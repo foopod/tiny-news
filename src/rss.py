@@ -1,6 +1,5 @@
-import xmltodict
-import requests
-import json
+from http_utils import get_cached_rss
+
 
 class NewsType:
     LOCAL = "Local"
@@ -16,5 +15,4 @@ class NewsType:
     }
 
 def getRSS(url: str) -> dict:
-    response = requests.get(url)
-    return xmltodict.parse(response.content)
+    return get_cached_rss(url)
