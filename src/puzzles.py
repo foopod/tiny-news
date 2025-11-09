@@ -1,9 +1,9 @@
 from datetime import datetime
 import os
-import requests
 import random
 import json
 import textwrap
+from http_utils import get_cached_json
 
 from util import center_pad, print_heading
 from wordwheel import draw_wordwheel
@@ -33,11 +33,10 @@ takuzu_map = {
 def get_random_puzzle():
     options = ['sudoku', 'wordsearch', 'anagram']
     puzzle_type = random.choice(options)
-    
+
     params = {}
     # TODO add params based on puzzle type
-    response = requests.get(puzzlemap[puzzle_type], params=params)
-    data = response.json()
+    data = get_cached_json(puzzlemap[puzzle_type], params)
     return {
         'puzzle_type': puzzle_type,
         'data': data
@@ -60,8 +59,8 @@ def print_puzzle(puzzle_dict, printer):
         printer.text(center_pad(puzzle_data["task"], 24))
         printer.print_and_feed(2)
         printer.set(custom_size=False, height=1, width=1)
-        printer.textln(f"Goal: {len(puzzle_data["words"])} words")
-        printer.textln(f"Longest: {len(max(puzzle_data["words"], key=len))} letters")
+        printer.textln(f"Goal: {len(puzzle_data['words'])} words")
+        printer.textln(f"Longest: {len(max(puzzle_data['words'], key=len))} letters")
     elif puzzle_type == 'sudoku':
         render_sudoku(puzzle_data["task"])
         printer.image('puzzle.png', impl='graphics', center=True)
@@ -101,9 +100,12 @@ def print_crossword_clues(printer, clues):
 
 def print_grid(printer, grid_dict):
     printer.set(custom_size=True, height=2, width=2, underline=True, align='center')
-    printer.textln(f" {' '.join([f"{c if c else " "}" for c in " "*len(grid_dict)])} ")
+    spaces = " " * len(grid_dict)
+    header = " " + " ".join([c if c else " " for c in spaces]) + " "
+    printer.textln(header)
     for row in grid_dict:
-        line = f"|{'|'.join([f"{c if c else " "}" for c in row])}|"
+        cells = [c if c else " " for c in row]
+        line = "|" + "|".join(cells) + "|"
         printer.textln(line)
     printer.set(custom_size=False, height=1, width=1, underline=False, align='left')
 
