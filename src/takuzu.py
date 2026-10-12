@@ -14,6 +14,7 @@ The solver only uses single-line deductions (pairs, sandwiches and completed
 counts), so every puzzle can be solved without guessing and has exactly one
 solution.
 """
+import copy
 import itertools
 import random
 from functools import lru_cache
@@ -157,8 +158,19 @@ def size_for_date(date):
     return SIZES[(date.toordinal() // 7) % len(SIZES)]
 
 
+# generated puzzles kept in memory, keyed by (date, size)
+_cache = {}
+
+
 def generate_takuzu(date, size=None):
     n = size or size_for_date(date)
+    key = (date, n)
+    if key not in _cache:
+        _cache[key] = _generate(date, n)
+    return copy.deepcopy(_cache[key])
+
+
+def _generate(date, n):
     rng = random.Random(f"takuzu-{date.isoformat()}")
     solution = _solution(n, rng)
     puzzle = _dig(solution, n, rng)

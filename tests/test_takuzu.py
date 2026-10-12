@@ -3,11 +3,12 @@ import sys
 import os
 import time
 from datetime import date, timedelta
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
+import takuzu
 from takuzu import generate_takuzu, size_for_date, solve, SIZES
 from puzzles import puzzle_for_date, puzzle_from_api
 
@@ -91,10 +92,19 @@ class TestTakuzuGenerator(unittest.TestCase):
             'task': GOLDEN_TASK
         })
 
+    def test_puzzle_is_cached_per_date(self):
+        d = date(2030, 1, 7)
+        with patch('takuzu._generate', wraps=takuzu._generate) as mock_generate:
+            first = generate_takuzu(d)
+            first['data']['task'][0][0] = 'mutated'
+            second = generate_takuzu(d)
+            self.assertEqual(mock_generate.call_count, 1)
+            self.assertNotEqual(second['data']['task'][0][0], 'mutated')
+
     def test_generation_is_fast(self):
         start = time.time()
         for d in MONDAYS[:10]:
-            generate_takuzu(d, 10)
+            takuzu._generate(d, 10)
         self.assertLess((time.time() - start) / 10, 0.5)
 
 
