@@ -1,7 +1,7 @@
 import unittest
 import sys
 import os
-from datetime import datetime
+from datetime import date, datetime
 from unittest.mock import patch, Mock, MagicMock
 
 # Add src to path for imports
@@ -176,7 +176,7 @@ class TestIntegrationWithMockedPrinter(unittest.TestCase):
 
                 # Mock sudoku rendering
                 with patch('puzzles.render_sudoku') as mock_render:
-                    puzzle_from_api(self.mock_printer)
+                    puzzle_from_api(self.mock_printer, date(2026, 10, 15))  # a Thursday, loaded from file
 
                     # Verify file was loaded instead of API call
                     mock_json_load.assert_called_once()
@@ -215,7 +215,7 @@ class TestIntegrationWithMockedPrinter(unittest.TestCase):
 
         # Check that a date-like string was printed
         text_calls = [call[0][0] for call in self.mock_printer.textln.call_args_list if call[0]]
-        date_printed = any("2025" in str(call) for call in text_calls)
+        date_printed = any(str(datetime.today().year) in str(call) for call in text_calls)
         self.assertTrue(date_printed, "Date should be printed in header")
 
     @patch('tiny_news.Usb')

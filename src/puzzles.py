@@ -10,6 +10,7 @@ from wordwheel import draw_wordwheel
 from chess import render_chess
 from sudoku import render_sudoku
 from crossword import render_crossword
+from takuzu import generate_takuzu
 
 puzzlemap = {
     'sudoku': 'https://shadify.yurace.pro/api/sudoku/generator',
@@ -28,6 +29,10 @@ description_map = {
 takuzu_map = {
     '0': "o",
     '1': "x"
+}
+# puzzles generated from the date instead of loaded from puzzles/{date}.json
+generators = {
+    0: generate_takuzu  # Monday
 }
 
 def get_random_puzzle():
@@ -109,18 +114,23 @@ def print_grid(printer, grid_dict):
         printer.textln(line)
     printer.set(custom_size=False, height=1, width=1, underline=False, align='left')
 
-def puzzle_from_api(printer):
-    now = datetime.today()
-    date_format = "%Y-%m-%d"
-    d = now.strftime(date_format)
-    # d="2025-08-14"
-    filepath = f"puzzles/{d}.json"
-    puzzle_dict = {}
-    
+def puzzle_for_date(date):
+    generator = generators.get(date.weekday())
+    if generator:
+        return generator(date)
+
+    filepath = f"puzzles/{date.strftime('%Y-%m-%d')}.json"
     if os.path.isfile(filepath):
-        # already exists
         with open(filepath, 'r') as f:
-            puzzle_dict = json.load(f)
+            return json.load(f)
+    return None
+
+def puzzle_from_api(printer, date=None):
+    date = date or datetime.today().date()
+    puzzle_dict = puzzle_for_date(date)
+    if puzzle_dict is None:
+        print(f"No puzzle for {date}")
+        return
 
     print_puzzle(puzzle_dict, printer)
 
