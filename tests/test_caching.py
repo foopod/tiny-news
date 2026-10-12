@@ -1,6 +1,7 @@
 import unittest
 import sys
 import os
+import threading
 from unittest.mock import patch, Mock
 
 import requests
@@ -224,7 +225,7 @@ class TestRequestBudget(CachingTestCase):
         # 10s first attempt + 1s backoff leaves 4s, so a second attempt but no third
         self.assertEqual(timeouts, [REQUEST_BUDGET, REQUEST_BUDGET - 11])
 
-    def test_slow_network_falls_back_to_cache_within_budget(self):
+    def test_timed_out_request_falls_back_to_cache_within_budget(self):
         self.mock_get.return_value = rss_response("Cached")
         get_cached_rss(RSS_URL)
 
@@ -238,6 +239,91 @@ class TestRequestBudget(CachingTestCase):
 
         self.assertEqual(result["rss"]["channel"]["item"]["title"], "Cached")
         self.assertLessEqual(self.clock.now - start, REQUEST_BUDGET)
+
+
+class TestSlowResponses(CachingTestCase):
+    """The 2 second rule: fast responses are used, slow ones fall back to a recent cache."""
+
+    def setUp(self):
+        super().setUp()
+        # shrink the 2s wait so the tests run quickly; this uses real time
+        patcher = patch('http_utils.FAST_RESPONSE', 0.1)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.release = threading.Event()
+        # never leave a background request blocked after a test
+        self.addCleanup(self.release.set)
+
+    def slow_response(self, title, delay=None):
+        """A request that answers only once released (or after a real delay)."""
+        def get(*args, **kwargs):
+            self.release.wait(delay)
+            return rss_response(title)
+        return get
+
+    def wait_for_cached_title(self, title, timeout=2):
+        deadline = threading.Event()
+        for _ in range(int(timeout / 0.01)):
+            cached = http_utils._cache.get(http_utils._cache_key(RSS_URL))
+            if cached and cached[1]["rss"]["channel"]["item"]["title"] == title:
+                return True
+            deadline.wait(0.01)
+        return False
+
+    def test_fast_response_is_used_even_with_cache(self):
+        self.mock_get.return_value = rss_response("Old")
+        get_cached_rss(RSS_URL)
+        self.mock_get.side_effect = self.slow_response("New", delay=0.01)
+
+        result = get_cached_rss(RSS_URL)
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "New")
+
+    def test_slow_response_with_recent_cache_uses_cache(self):
+        self.mock_get.return_value = rss_response("Cached")
+        get_cached_rss(RSS_URL)
+        self.clock.now += 60 * 60
+        self.mock_get.side_effect = self.slow_response("Live")
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Cached")
+
+    def test_slow_response_refreshes_cache_in_background(self):
+        self.mock_get.return_value = rss_response("Cached")
+        get_cached_rss(RSS_URL)
+        self.mock_get.side_effect = self.slow_response("Live")
+
+        get_cached_rss(RSS_URL)
+        self.release.set()
+
+        self.assertTrue(self.wait_for_cached_title("Live"), "slow response should still update the cache")
+
+    def test_slow_response_without_cache_waits_for_live(self):
+        self.mock_get.side_effect = self.slow_response("Live", delay=0.3)
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Live")
+
+    def test_slow_response_with_old_cache_waits_for_live(self):
+        self.mock_get.return_value = rss_response("Too old")
+        get_cached_rss(RSS_URL)
+        self.clock.now += 3 * 60 * 60
+        self.mock_get.side_effect = self.slow_response("Live", delay=0.3)
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Live")
+
+    def test_slow_failure_without_cache_returns_placeholder(self):
+        def slow_failure(*args, **kwargs):
+            threading.Event().wait(0.3)
+            raise requests.exceptions.ConnectionError("down")
+        self.mock_get.side_effect = slow_failure
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"][0]["title"], "Failed to fetch news")
 
 
 class TestCallers(unittest.TestCase):

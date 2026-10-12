@@ -1,19 +1,27 @@
 """Live-first HTTP fetching with a short-lived fallback cache.
 
-Every call goes to the network first. A successful response is returned and
-remembered. If the request fails or runs past the time budget, the last good
-response is used instead, but only if it is no older than MAX_CACHE_AGE.
-Failures are never cached, and the cache lives in memory only.
+Every call goes to the network first, in a background thread:
+  - a response within FAST_RESPONSE seconds is used as is
+  - if it's slower and a recent cached copy exists, the cached copy is used
+    (the request carries on in the background and refreshes the cache)
+  - if it's slower and nothing recent is cached, we keep waiting for it, up to
+    REQUEST_BUDGET seconds including retries
+A failed request also falls back to a recent cached copy. Cached copies are
+only used while no older than MAX_CACHE_AGE. Failures are never cached, and
+the cache lives in memory only.
 """
 import copy
 import json
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from datetime import datetime
 from typing import Any, Callable, Dict, Optional
 
 import requests
 import xmltodict
 
+# how long to wait for a live response before using a cached copy
+FAST_RESPONSE = 2
 # total time allowed for one fetch, including retries
 REQUEST_BUDGET = 15
 # oldest cached response we're willing to fall back to
@@ -22,6 +30,8 @@ MAX_RETRIES = 3
 
 # (url, params) -> (time fetched, data)
 _cache: Dict[tuple, tuple] = {}
+
+_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="fetch")
 
 
 def _now() -> float:
@@ -72,21 +82,46 @@ def _request_within_budget(
     )
 
 
-def _fetch(key: tuple, fetch: Callable[[], Any]) -> Any:
-    """Fetch live data, falling back to a recent cached copy if the fetch fails."""
-    try:
-        data = fetch()
-    except Exception as e:
-        cached = _cache.get(key)
-        if cached and _now() - cached[0] <= MAX_CACHE_AGE:
-            age_minutes = int((_now() - cached[0]) / 60)
-            print(f"Fetch failed for {key[0]} ({e}), using cached copy from {age_minutes} min ago")
-            # callers modify what they get back (e.g. print_weather), so hand out copies
-            return copy.deepcopy(cached[1])
-        raise
+def _fresh_cached(key: tuple) -> Optional[tuple]:
+    """Return (age in seconds, copy of data) if a recent enough copy is cached."""
+    cached = _cache.get(key)
+    if cached and _now() - cached[0] <= MAX_CACHE_AGE:
+        # callers modify what they get back (e.g. print_weather), so hand out copies
+        return _now() - cached[0], copy.deepcopy(cached[1])
+    return None
 
+
+def _fetch_and_store(key: tuple, fetch: Callable[[], Any]) -> Any:
+    data = fetch()
     _cache[key] = (_now(), copy.deepcopy(data))
     return data
+
+
+def _fetch(key: tuple, fetch: Callable[[], Any]) -> Any:
+    """Fetch live data, using a recent cached copy if the fetch is slow or fails."""
+    future = _executor.submit(_fetch_and_store, key, fetch)
+    try:
+        return future.result(timeout=FAST_RESPONSE)
+    except FutureTimeout:
+        cached = _fresh_cached(key)
+        if cached:
+            print(f"Slow response from {key[0]}, using cached copy from {int(cached[0] / 60)} min ago")
+            return cached[1]
+        # nothing recent to fall back on, so wait for the live response
+        try:
+            return future.result()
+        except Exception as e:
+            return _cached_or_raise(key, e)
+    except Exception as e:
+        return _cached_or_raise(key, e)
+
+
+def _cached_or_raise(key: tuple, error: Exception) -> Any:
+    cached = _fresh_cached(key)
+    if cached:
+        print(f"Fetch failed for {key[0]} ({error}), using cached copy from {int(cached[0] / 60)} min ago")
+        return cached[1]
+    raise error
 
 
 def get_cached_rss(url: str) -> Dict[str, Any]:
