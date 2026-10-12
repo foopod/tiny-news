@@ -1,58 +1,7 @@
 import json
 from datetime import datetime, timedelta
-import os
-import shutil
 import random
 
-
-def process_zuzu():
-    # Load JSON data from a file
-    with open('raw_takuzu.json', 'r') as file:
-        data = json.load(file)
-
-    supported = [8]
-    puzzles = []
-
-    for cols in supported:
-        puzzle_list = data.get(f"{cols}")
-        print(f"{cols}")
-        print(puzzle_list)
-        for index, puzzle in enumerate(puzzle_list):
-            puzzle = puzzle.split("::")[2]
-            task = []
-            offset = 0
-            for i in range(cols):
-                row = []
-                for j in range(cols):
-                    value = puzzle[i+j*cols]
-                    row.append(value if value != '.' else 'x')
-                task.append(row)
-            
-            data = {
-                'size': cols,
-                'task': task
-            }
-            puzzle_json = {
-                'puzzle_type': 'takuzu',
-                'data': data
-            }
-            with open(f"zuzu/{cols}-{index}.json", 'w') as file:
-                file.write(json.dumps(puzzle_json))
-
-def process_zuzu_puzzles():
-    current_date = datetime.now()
-    unused = os.listdir('zuzu')
-    while(len(unused) > 0):
-        is_monday = False
-        while (not is_monday):
-            current_date += timedelta(days=1)
-            if(current_date.weekday() == 0): # Monday
-                is_monday = True
-        
-        new_file_name = current_date.strftime("%Y-%m-%d")
-        file_to_copy = random.choice(unused)
-        shutil.copyfile(f"zuzu/{file_to_copy}", f"puzzles/{new_file_name}.json")
-        unused.remove(file_to_copy)
 
 def process_wordwheels():
     words = ["abdominal", "abrasive", "abundance",
