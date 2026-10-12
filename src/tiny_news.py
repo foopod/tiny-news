@@ -1,5 +1,7 @@
 from escpos.printer import Usb
+from contextlib import contextmanager
 from datetime import datetime
+import logging
 import textwrap
 
 from puzzles import puzzle_from_api
@@ -7,46 +9,59 @@ from util import get_weather, map_weather_code, center_pad, print_heading, escpo
 from rss import NewsType, getRSS
 import json
 
-def print_rick_roll():
-    p = Usb(0x04b8, 0x0e28, 0)
-    # https://www.youtube.com/watch?v=dQw4w9WgXcQ
-    p.qr("https://www.youtube.com/watch?v=dQw4w9WgXcQ", size=16)
-    p.cut()
-    p.close()
+logger = logging.getLogger(__name__)
 
-def print_weather_only():
-    p = Usb(0x04b8, 0x0e28, 0)
-    print_weather(p)
-    p.cut()
-    p.close()
-
-def print_puzzle_only():
-    p = Usb(0x04b8, 0x0e28, 0)
-    puzzle_from_api(p)
-    p.cut()
-    p.close()
-
-def print_newsletter():
-
+@contextmanager
+def open_printer():
     """ Seiko Epson Corp. Receipt Printer (EPSON TM-T88III) """
     p = Usb(0x04b8, 0x0e28, 0)
-
-    print_header(p)
-    print_news(p, NewsType.LOCAL)
-    print_weather(p)
     try:
-        puzzle_from_api(p)
-    except Exception as e:
-        print(e)
-        print('oh no')
+        yield p
+    finally:
+        # always release the USB device, even if printing failed part way
+        p.close()
 
+def print_section(p, name, print_fn):
+    """Print one section, so a failure in it doesn't stop the rest of the paper."""
+    try:
+        print_fn(p)
+    except Exception:
+        logger.exception("Failed to print %s section", name)
+        p.print_and_feed(1)
+        p.textln(f"{name} unavailable today, sorry!")
+        p.print_and_feed(1)
+
+def print_rick_roll():
+    with open_printer() as p:
+        # https://www.youtube.com/watch?v=dQw4w9WgXcQ
+        p.qr("https://www.youtube.com/watch?v=dQw4w9WgXcQ", size=16)
+        p.cut()
+
+def print_weather_only():
+    with open_printer() as p:
+        print_section(p, "Weather", print_weather)
+        p.cut()
+
+def print_puzzle_only():
+    with open_printer() as p:
+        print_section(p, "Puzzle", puzzle_from_api)
+        p.cut()
+
+def print_newsletter():
+    with open_printer() as p:
+        print_section(p, "Date", print_header)
+        print_section(p, "News", lambda p: print_news(p, NewsType.LOCAL))
+        print_section(p, "Weather", print_weather)
+        print_section(p, "Puzzle", puzzle_from_api)
+        print_section(p, "Feedback", print_feedback)
+        p.cut()
+
+def print_feedback(p):
     p.print_and_feed(1)
     print_heading(p, f"Feedback")
     p.textln('Raise an Issue or Pull Request on Github')
     p.textln('https://github.com/foopod/tiny-news')
     p.qr("https://github.com/foopod/tiny-news", size=8)
-    p.cut()
-    p.close()
 
 def print_news(p, newsType, print_title = True):
     if newsType == NewsType.WORLD:
