@@ -11,6 +11,7 @@ from chess import render_chess
 from sudoku import render_sudoku
 from crossword import render_crossword
 from takuzu import generate_takuzu
+from wordwheel_generator import generate_wordwheel
 
 puzzlemap = {
     'sudoku': 'https://shadify.yurace.pro/api/sudoku/generator',
@@ -32,7 +33,8 @@ takuzu_map = {
 }
 # puzzles generated from the date instead of loaded from puzzles/{date}.json
 generators = {
-    0: generate_takuzu  # Monday
+    0: generate_takuzu,  # Monday
+    2: generate_wordwheel  # Wednesday
 }
 
 def get_random_puzzle():
@@ -77,7 +79,7 @@ def print_puzzle(puzzle_dict, printer):
         render_chess(puzzle_data["task"])
         printer.image('puzzle.png', impl='graphics', center=True)
     elif puzzle_type == 'wordwheel':
-        draw_wordwheel(puzzle_data["task"], output_file="puzzle.png")
+        draw_wordwheel(puzzle_data["task"], output_file="puzzle.png", reverse=puzzle_data["reverse"], rotation=puzzle_data["rotation"])
         printer.image('puzzle.png', impl='graphics', center=True)
     elif puzzle_type == 'takuzu':
         takuzu_data = []
