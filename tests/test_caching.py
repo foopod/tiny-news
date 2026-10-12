@@ -1,232 +1,346 @@
 import unittest
 import sys
 import os
-from unittest.mock import patch, Mock, MagicMock
-import time
+import threading
+from unittest.mock import patch, Mock
+
+import requests
 
 # Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from http_utils import get_cached_rss, get_cached_json, _cached_rss_request, _cached_json_request
+import http_utils
+from http_utils import get_cached_rss, get_cached_json, _request_within_budget, REQUEST_BUDGET, MAX_CACHE_AGE
 from rss import getRSS, NewsType
 from util import get_weather
 
+RSS_URL = "https://example.com/rss"
+JSON_URL = "https://example.com/data"
+WEATHER_URL = "https://api.open-meteo.com/v1/forecast"
 
-class TestCachingFunctionality(unittest.TestCase):
+
+def rss_response(title):
+    response = Mock(status_code=200)
+    response.content = f"<rss><channel><item><title>{title}</title><description>d</description></item></channel></rss>".encode()
+    response.raise_for_status.return_value = None
+    return response
+
+
+def json_response(data):
+    response = Mock(status_code=200)
+    response.json.return_value = data
+    response.raise_for_status.return_value = None
+    return response
+
+
+class FakeClock:
+    """Stands in for http_utils._now and time.sleep so tests control time."""
+
+    def __init__(self):
+        self.now = 1000.0
+
+    def __call__(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+class CachingTestCase(unittest.TestCase):
 
     def setUp(self):
-        # Clear LRU cache before each test
-        _cached_rss_request.cache_clear()
-        _cached_json_request.cache_clear()
+        http_utils._cache.clear()
+        self.clock = FakeClock()
+        patches = [
+            patch('http_utils._now', self.clock),
+            patch('http_utils.time.sleep', side_effect=self.clock.sleep),
+            patch('http_utils.requests.get'),
+        ]
+        mocks = [p.start() for p in patches]
+        self.mock_sleep, self.mock_get = mocks[1], mocks[2]
+        for p in patches:
+            self.addCleanup(p.stop)
 
-    @patch('http_utils._cached_rss_request')
-    def test_rss_caching_success(self, mock_cached_rss):
-        # Mock successful RSS response
-        mock_cached_rss.return_value = {
-            "success": True,
-            "data": {
-                "rss": {
-                    "channel": {
-                        "item": [{
-                            "title": "Test News Item",
-                            "description": "Test description"
-                        }]
-                    }
-                }
-            }
-        }
 
-        # First call should use cached function
-        result1 = get_cached_rss("https://example.com/rss")
-        self.assertEqual(mock_cached_rss.call_count, 1)
-        self.assertIn("rss", result1)
-        self.assertEqual(result1["rss"]["channel"]["item"][0]["title"], "Test News Item")
+class TestLiveFirstFetching(CachingTestCase):
 
-        # Second call should use same cache key (same result)
-        result2 = get_cached_rss("https://example.com/rss")
-        self.assertEqual(result1, result2)
+    def test_success_returns_live_data(self):
+        self.mock_get.return_value = rss_response("Live")
+        result = get_cached_rss(RSS_URL)
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Live")
 
-    @patch('http_utils.requests.get')
-    def test_rss_caching_failure_fallback(self, mock_get):
-        # Mock failed RSS response
-        mock_get.side_effect = Exception("Network error")
+    def test_always_fetches_live_even_with_fresh_cache(self):
+        self.mock_get.return_value = rss_response("First")
+        get_cached_rss(RSS_URL)
 
-        result = get_cached_rss("https://example.com/rss")
+        self.clock.now += 60
+        self.mock_get.return_value = rss_response("Second")
+        result = get_cached_rss(RSS_URL)
 
-        # Should return fallback data
-        self.assertIn("rss", result)
+        self.assertEqual(self.mock_get.call_count, 2)
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Second")
+
+    def test_failure_with_recent_cache_uses_cache(self):
+        self.mock_get.return_value = rss_response("Cached")
+        get_cached_rss(RSS_URL)
+
+        self.clock.now += 30 * 60
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("down")
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Cached")
+
+    def test_failure_with_cache_at_max_age_uses_cache(self):
+        self.mock_get.return_value = json_response({"value": 1})
+        get_cached_json(JSON_URL)
+
+        self.clock.now += MAX_CACHE_AGE
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("down")
+        # the failed attempts and backoff take time too, so stop the clock moving on sleep
+        self.mock_sleep.side_effect = None
+        self.assertEqual(get_cached_json(JSON_URL), {"value": 1})
+
+    def test_failure_with_old_cache_returns_placeholder(self):
+        self.mock_get.return_value = rss_response("Too old")
+        get_cached_rss(RSS_URL)
+
+        self.clock.now += 3 * 60 * 60
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("down")
+        result = get_cached_rss(RSS_URL)
+
         self.assertEqual(result["rss"]["channel"]["item"][0]["title"], "Failed to fetch news")
-        self.assertIn("Network error", result["rss"]["channel"]["item"][0]["description"])
+        self.assertIn("down", result["rss"]["channel"]["item"][0]["description"])
+
+    def test_failure_with_no_cache_returns_placeholder(self):
+        self.mock_get.side_effect = Exception("Network error")
+        result = get_cached_rss(RSS_URL)
+        self.assertEqual(result["rss"]["channel"]["item"][0]["title"], "Failed to fetch news")
+
+    def test_failures_are_not_cached(self):
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("down")
+        get_cached_rss(RSS_URL)
+        self.assertEqual(http_utils._cache, {})
+
+        self.mock_get.side_effect = None
+        self.mock_get.return_value = rss_response("Recovered")
+        result = get_cached_rss(RSS_URL)
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Recovered")
+
+    def test_bad_response_body_falls_back_to_cache(self):
+        self.mock_get.return_value = rss_response("Good")
+        get_cached_rss(RSS_URL)
+
+        broken = Mock(status_code=200, content=b"<rss><not-closed>")
+        broken.raise_for_status.return_value = None
+        self.mock_get.return_value = broken
+        result = get_cached_rss(RSS_URL)
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Good")
+
+    def test_client_error_is_not_retried(self):
+        response = Mock(status_code=404)
+        response.raise_for_status.side_effect = requests.exceptions.HTTPError("404")
+        self.mock_get.return_value = response
+
+        result = get_cached_json(JSON_URL)
+
+        self.assertEqual(self.mock_get.call_count, 1)
+        self.assertIn("error", result)
+
+    def test_cache_is_keyed_by_params(self):
+        self.mock_get.return_value = json_response({"city": "a"})
+        get_cached_json(WEATHER_URL, {"latitude": 1})
+        self.mock_get.return_value = json_response({"city": "b"})
+        get_cached_json(WEATHER_URL, {"latitude": 2})
+
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("down")
+        self.assertEqual(get_cached_json(WEATHER_URL, {"latitude": 1}), {"city": "a"})
+        self.assertEqual(get_cached_json(WEATHER_URL, {"latitude": 2}), {"city": "b"})
+
+    def test_params_are_sent_with_the_request(self):
+        self.mock_get.return_value = json_response({})
+        get_cached_json(WEATHER_URL, {"latitude": 1})
+        self.assertEqual(self.mock_get.call_args.kwargs["params"], {"latitude": 1})
+
+    def test_weather_failure_without_cache_returns_weather_fallback(self):
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("down")
+        result = get_cached_json(WEATHER_URL, {"latitude": 1})
+        self.assertEqual(result["daily"]["temperature_2m_max"], ["--"])
+
+    def test_callers_cannot_modify_cached_data(self):
+        self.mock_get.return_value = json_response({"daily": {"temps": [1, 2]}})
+        first = get_cached_json(JSON_URL)
+        first["daily"]["temps"] = ["changed"]
+
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("down")
+        second = get_cached_json(JSON_URL)
+        second["daily"]["temps"].append(3)
+        third = get_cached_json(JSON_URL)
+
+        self.assertEqual(third["daily"]["temps"], [1, 2])
+
+
+class TestRequestBudget(CachingTestCase):
+
+    def test_retries_with_backoff_then_succeeds(self):
+        ok = Mock(status_code=200)
+        self.mock_get.side_effect = [
+            requests.exceptions.ConnectionError("Connection error"),
+            requests.exceptions.Timeout("Timeout"),
+            ok,
+        ]
+
+        result = _request_within_budget(JSON_URL)
+
+        self.assertEqual(result, ok)
+        self.assertEqual(self.mock_get.call_count, 3)
+        self.assertEqual([c.args[0] for c in self.mock_sleep.call_args_list], [1, 2])
+
+    def test_server_errors_are_retried(self):
+        ok = Mock(status_code=200)
+        self.mock_get.side_effect = [Mock(status_code=503), ok]
+        self.assertEqual(_request_within_budget(JSON_URL), ok)
+
+    def test_gives_up_after_max_retries(self):
+        self.mock_get.side_effect = requests.exceptions.ConnectionError("Persistent error")
+
+        with self.assertRaises(requests.exceptions.ConnectionError):
+            _request_within_budget(JSON_URL)
+
+        self.assertEqual(self.mock_get.call_count, 3)
+        self.assertEqual(self.mock_sleep.call_count, 2)
+
+    def test_attempt_timeout_is_the_time_left(self):
+        def slow_failure(*args, **kwargs):
+            self.clock.now += 10
+            raise requests.exceptions.Timeout("slow")
+
+        self.mock_get.side_effect = slow_failure
+
+        with self.assertRaises(requests.exceptions.Timeout):
+            _request_within_budget(JSON_URL)
+
+        timeouts = [c.kwargs["timeout"] for c in self.mock_get.call_args_list]
+        self.assertEqual(timeouts[0], REQUEST_BUDGET)
+        self.assertTrue(all(t <= REQUEST_BUDGET for t in timeouts))
+        # 10s first attempt + 1s backoff leaves 4s, so a second attempt but no third
+        self.assertEqual(timeouts, [REQUEST_BUDGET, REQUEST_BUDGET - 11])
+
+    def test_timed_out_request_falls_back_to_cache_within_budget(self):
+        self.mock_get.return_value = rss_response("Cached")
+        get_cached_rss(RSS_URL)
+
+        def hangs_until_timeout(*args, **kwargs):
+            self.clock.now += kwargs["timeout"]
+            raise requests.exceptions.Timeout("timed out")
+
+        self.mock_get.side_effect = hangs_until_timeout
+        start = self.clock.now
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Cached")
+        self.assertLessEqual(self.clock.now - start, REQUEST_BUDGET)
+
+
+class TestSlowResponses(CachingTestCase):
+    """The 2 second rule: fast responses are used, slow ones fall back to a recent cache."""
+
+    def setUp(self):
+        super().setUp()
+        # shrink the 2s wait so the tests run quickly; this uses real time
+        patcher = patch('http_utils.FAST_RESPONSE', 0.1)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.release = threading.Event()
+        # never leave a background request blocked after a test
+        self.addCleanup(self.release.set)
+
+    def slow_response(self, title, delay=None):
+        """A request that answers only once released (or after a real delay)."""
+        def get(*args, **kwargs):
+            self.release.wait(delay)
+            return rss_response(title)
+        return get
+
+    def wait_for_cached_title(self, title, timeout=2):
+        deadline = threading.Event()
+        for _ in range(int(timeout / 0.01)):
+            cached = http_utils._cache.get(http_utils._cache_key(RSS_URL))
+            if cached and cached[1]["rss"]["channel"]["item"]["title"] == title:
+                return True
+            deadline.wait(0.01)
+        return False
+
+    def test_fast_response_is_used_even_with_cache(self):
+        self.mock_get.return_value = rss_response("Old")
+        get_cached_rss(RSS_URL)
+        self.mock_get.side_effect = self.slow_response("New", delay=0.01)
+
+        result = get_cached_rss(RSS_URL)
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "New")
+
+    def test_slow_response_with_recent_cache_uses_cache(self):
+        self.mock_get.return_value = rss_response("Cached")
+        get_cached_rss(RSS_URL)
+        self.clock.now += 60 * 60
+        self.mock_get.side_effect = self.slow_response("Live")
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Cached")
+
+    def test_slow_response_refreshes_cache_in_background(self):
+        self.mock_get.return_value = rss_response("Cached")
+        get_cached_rss(RSS_URL)
+        self.mock_get.side_effect = self.slow_response("Live")
+
+        get_cached_rss(RSS_URL)
+        self.release.set()
+
+        self.assertTrue(self.wait_for_cached_title("Live"), "slow response should still update the cache")
+
+    def test_slow_response_without_cache_waits_for_live(self):
+        self.mock_get.side_effect = self.slow_response("Live", delay=0.3)
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Live")
+
+    def test_slow_response_with_old_cache_waits_for_live(self):
+        self.mock_get.return_value = rss_response("Too old")
+        get_cached_rss(RSS_URL)
+        self.clock.now += 3 * 60 * 60
+        self.mock_get.side_effect = self.slow_response("Live", delay=0.3)
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"]["title"], "Live")
+
+    def test_slow_failure_without_cache_returns_placeholder(self):
+        def slow_failure(*args, **kwargs):
+            threading.Event().wait(0.3)
+            raise requests.exceptions.ConnectionError("down")
+        self.mock_get.side_effect = slow_failure
+
+        result = get_cached_rss(RSS_URL)
+
+        self.assertEqual(result["rss"]["channel"]["item"][0]["title"], "Failed to fetch news")
+
+
+class TestCallers(unittest.TestCase):
 
     @patch('util.get_cached_json')
-    def test_weather_api_caching(self, mock_cached_json):
-        # Mock successful weather response
-        mock_cached_json.return_value = {
-            "daily": {
-                "time": ["2025-09-17", "2025-09-18"],
-                "temperature_2m_max": [20, 22],
-                "temperature_2m_min": [10, 12],
-                "precipitation_sum": [0, 5],
-                "weather_code": [0, 61]
-            },
-            "daily_units": {
-                "temperature_2m_max": "°C",
-                "temperature_2m_min": "°C",
-                "precipitation_sum": "mm"
-            }
-        }
-
-        result = get_weather()
-
-        self.assertEqual(len(result["daily"]["time"]), 2)
-        self.assertEqual(result["daily"]["temperature_2m_max"][0], 20)
-        self.assertEqual(mock_cached_json.call_count, 1)
-
-    @patch('util.get_cached_json')
-    def test_weather_api_failure_fallback(self, mock_cached_json):
-        # Mock failed weather response with fallback data
-        mock_cached_json.return_value = {
-            "daily": {
-                "time": ["2025-09-17"],
-                "temperature_2m_max": ["--"],
-                "temperature_2m_min": ["--"],
-                "precipitation_sum": [0],
-                "weather_code": [0]
-            },
-            "daily_units": {
-                "temperature_2m_max": "°C",
-                "temperature_2m_min": "°C",
-                "precipitation_sum": "mm"
-            }
-        }
-
-        result = get_weather()
-
-        # Should return fallback weather data
-        self.assertEqual(len(result["daily"]["time"]), 1)
-        self.assertEqual(result["daily"]["temperature_2m_max"][0], "--")
-        self.assertEqual(result["daily_units"]["temperature_2m_max"], "°C")
+    def test_weather_uses_get_cached_json_with_params(self, mock_cached_json):
+        mock_cached_json.return_value = {"daily": {}}
+        get_weather()
+        url, params = mock_cached_json.call_args.args
+        self.assertIn("open-meteo", url)
+        self.assertEqual(params["timezone"], "Pacific/Auckland")
 
     @patch('rss.get_cached_rss')
     def test_rss_integration_via_getrss(self, mock_get_cached_rss):
-        # Test RSS integration through the getRSS function
-        mock_get_cached_rss.return_value = {
-            "rss": {
-                "channel": {
-                    "item": [{
-                        "title": "Local News",
-                        "description": "Local news description"
-                    }]
-                }
-            }
-        }
-
-        # Test with actual NewsType URL
-        result = getRSS(NewsType.NewsMap['Local'])
-
-        self.assertIn("rss", result)
-        self.assertEqual(result["rss"]["channel"]["item"][0]["title"], "Local News")
-        self.assertEqual(mock_get_cached_rss.call_count, 1)
-        mock_get_cached_rss.assert_called_with(NewsType.NewsMap['Local'])
-
-    def test_exponential_retry_logic(self):
-        # Test the actual retry logic by calling the function directly
-        with patch('http_utils.requests.get') as mock_get:
-            with patch('http_utils.time.sleep') as mock_sleep:
-                from http_utils import _exponential_retry_request
-                import requests
-
-                # Mock failing requests that eventually succeed
-                mock_response = Mock()
-                mock_response.raise_for_status.return_value = None
-                mock_response.status_code = 200
-
-                # Create exception instances that would be caught
-                connection_error = requests.exceptions.ConnectionError("Connection error")
-                timeout_error = requests.exceptions.Timeout("Timeout")
-
-                # First two calls fail, third succeeds
-                mock_get.side_effect = [
-                    connection_error,
-                    timeout_error,
-                    mock_response
-                ]
-
-                result = _exponential_retry_request("https://example.com/test")
-
-                # Should have made 3 attempts
-                self.assertEqual(mock_get.call_count, 3)
-
-                # Should have slept twice (1s, 2s)
-                self.assertEqual(mock_sleep.call_count, 2)
-                mock_sleep.assert_any_call(1)  # First retry delay
-                mock_sleep.assert_any_call(2)  # Second retry delay
-
-                # Should return successful response
-                self.assertEqual(result, mock_response)
-
-    def test_exponential_retry_max_attempts(self):
-        # Test max attempts with all failures
-        with patch('http_utils.requests.get') as mock_get:
-            with patch('http_utils.time.sleep') as mock_sleep:
-                from http_utils import _exponential_retry_request
-                import requests
-
-                # Mock all requests failing with proper exception type
-                connection_error = requests.exceptions.ConnectionError("Persistent error")
-                mock_get.side_effect = connection_error
-
-                # Should raise exception after max attempts
-                with self.assertRaises(requests.exceptions.ConnectionError):
-                    _exponential_retry_request("https://example.com/test")
-
-                # Should have made 3 attempts
-                self.assertEqual(mock_get.call_count, 3)
-
-                # Should have slept twice (1s, 2s) but not after final attempt
-                self.assertEqual(mock_sleep.call_count, 2)
-
-    def test_cache_hour_expiry_simulation(self):
-        # Test that cache uses hour-based keys for expiry
-        with patch('http_utils._cached_rss_request') as mock_cached_rss:
-            # Mock different responses for different hours
-            def side_effect(url, hour_key):
-                if hour_key == "2025-09-17-10":
-                    return {
-                        "success": True,
-                        "data": {"rss": {"channel": {"item": [{"title": "Hour 1"}]}}}
-                    }
-                else:
-                    return {
-                        "success": True,
-                        "data": {"rss": {"channel": {"item": [{"title": "Hour 2"}]}}}
-                    }
-
-            mock_cached_rss.side_effect = side_effect
-
-            with patch('http_utils._get_hour_key') as mock_hour_key:
-                # Simulate first hour
-                mock_hour_key.return_value = "2025-09-17-10"
-                result1 = get_cached_rss("https://example.com/rss")
-
-                # Same hour - should use same cache key
-                result2 = get_cached_rss("https://example.com/rss")
-
-                # Simulate next hour - different cache key
-                mock_hour_key.return_value = "2025-09-17-11"
-                result3 = get_cached_rss("https://example.com/rss")
-
-                # Verify different results for different hours
-                self.assertEqual(result1["rss"]["channel"]["item"][0]["title"], "Hour 1")
-                self.assertEqual(result3["rss"]["channel"]["item"][0]["title"], "Hour 2")
-
-                # Should have been called with different hour keys
-                expected_calls = [
-                    unittest.mock.call("https://example.com/rss", "2025-09-17-10"),
-                    unittest.mock.call("https://example.com/rss", "2025-09-17-10"),
-                    unittest.mock.call("https://example.com/rss", "2025-09-17-11"),
-                ]
-                mock_cached_rss.assert_has_calls(expected_calls)
+        mock_get_cached_rss.return_value = {"rss": {}}
+        getRSS(NewsType.NewsMap['Local'])
+        mock_get_cached_rss.assert_called_once_with(NewsType.NewsMap['Local'])
 
 
 if __name__ == '__main__':
