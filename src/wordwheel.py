@@ -1,34 +1,5 @@
-import random
 import math
-from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
-
-# Word list
-words = [
-    "sunshine", "backpack", "midnight", "elephant", "notebook", "triangle", "calendar",
-    "dolphins", "mountain", "chocolate", "sandwich", "marathon", "painting", "keyboard",
-    "bicycles", "magazine", "campfire", "pineapple", "airplane", "umbrella", "vacation",
-    "laughter", "snowfall", "reindeer", "necklace", "treasure", "avocados", "baseball",
-    "skylight", "password", "birthday", "storybook", "volcanoes", "headphones", "telescope",
-    "drifting", "brilliant", "mystical", "gardener", "spectrum", "abdominal", "abrasive", "abundance",
-    "accident", "activate", "adjacent", "aircraft", "alligator", "ambition", "amphibian", "amusement",
-    "analogy", "ancestral", "androgyny", "annotate", "accusation", "relevancy", "companion", "sedative",
-    "marinate", "redirection", "perambulate", "benevolence", "complaint", "reschedule", "aneurism",
-    "backstage", "badminton", "balcony", "beguiling", "blemish", "bribery", "brutalism", "chocolate",
-    "cabinet", "cabaret", "caffeine", "cannibal", "capitalism", "cardiology", "cavernous", "circumvent",
-    "collapse", "corduroy", "crucible", "cumulative", "dalmatian", "daydream", "debatable", "declassified",
-    "denomination", "deprecation", "descendant", "dietitian", "digression", "dreadful", "dungeon",
-    "eccentric", "editorial", "education", "egomania", "emphatic", "emporium", "endemic", "endorsement",
-    "enhancement", "equation", "expiry", "familiar", "feminism", "fermented", "fierceness", "firmament",
-    "flamboyant", "floatation", "florist", "fogginess", "foreboding", "fundamental", "galavant", 
-    "galvanised", "gardener", "gazebo", "gelatinous", "glimmered", "glucose", "gorgeous", "governance",
-    "haunting", "hairspray", "hallucinate", "heftiness", "herbalism", "hindrance", "historian",
-    "identity", "idyllic", "ignorant", "illegitimate", "imbalance", "immersion", "incognito", "indicative",
-    "keystone", "kidnapper", "kilolitre", "kindergarten", "lacerate", "language", "legislation", "levitate",
-    "logistics", "lubricate", "maelstrom", "malcontent", "messenger", "modernise", "narcissist", 
-    "nocturnal", "numerous", "obstinate", "olfactory", "organism", "palatable", "pantomime", "peppercorn",
-    ""
-]
 
 # Scrabble scores
 scrabble_scores = {
@@ -40,31 +11,24 @@ scrabble_scores = {
     'z': 10
 }
 
-def get_random_word(word_list):
-    return random.choice(word_list)
-
 def top_scoring_letter(word):
     return max(word.lower(), key=lambda letter: scrabble_scores.get(letter, 0))
 
-def shuffle(word):
-    random.seed(datetime.now().strftime("%Y%m%d"))
+def shuffle(word, reverse=False, rotation=0):
+    """Blank the top scoring letter, then lay the word out for the wheel."""
     word = word.lower()
     top_letter = top_scoring_letter(word)
     index = word.find(top_letter)
     word = word[:index] + ' ' + word[index + 1:]
 
-    # 50% chance to reverse
-    if random.random() < 0.5:
+    if reverse:
         word = word[::-1]
 
-    # "Shuffle" using slice rearrangement
-    r_index = random.randint(0, len(word))
-    word = word[r_index:] + word[:r_index]
+    # rotate so the word doesn't always start at the same point on the wheel
+    return word[rotation:] + word[:rotation]
 
-    return word
-
-def draw_wordwheel(word, output_file='puzzle.png'):
-    shuffled = shuffle(word)
+def draw_wordwheel(word, output_file='puzzle.png', reverse=False, rotation=0):
+    shuffled = shuffle(word, reverse, rotation)
     size = 575
     font_size = 56
     image = Image.new('RGB', (size, size), color='white')
@@ -103,14 +67,3 @@ def draw_wordwheel(word, output_file='puzzle.png'):
     bw_image = image.convert('1')
     bw_image.save(output_file)
     print(f"Created: {output_file}")
-
-def create_puzzle():
-    today_date = datetime.now().strftime('%d-%m-%Y')
-    random.seed(today_date)
-    word = get_random_word(words)
-    draw_wordwheel(word)
-
-if __name__ == '__main__':
-    import math
-    create_puzzle()
-    print("done")

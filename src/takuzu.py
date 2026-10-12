@@ -19,21 +19,12 @@ import itertools
 import random
 from functools import lru_cache
 
+from seeded_random import shuffle
+
 SIZES = [6, 8, 10]
 EMPTY = 'x'
 # rows placed per solution attempt before restarting
 RESTART_BUDGET = 50
-
-
-def _rand_below(rng, n):
-    return int(rng.random() * n)
-
-
-def _shuffle(rng, items):
-    # Fisher-Yates using only rng.random() so results are stable across Python versions
-    for i in range(len(items) - 1, 0, -1):
-        j = _rand_below(rng, i + 1)
-        items[i], items[j] = items[j], items[i]
 
 
 def _line_ok(line, n):
@@ -89,7 +80,7 @@ def _try_solution(n, rng, budget):
         if steps > budget:
             return False
         candidates = list(rows)
-        _shuffle(rng, candidates)
+        shuffle(rng, candidates)
         for row in candidates:
             if row in grid:
                 continue
@@ -145,7 +136,7 @@ def solve(puzzle, n):
 def _dig(solution, n, rng):
     puzzle = [row[:] for row in solution]
     cells = [(r, c) for r in range(n) for c in range(n)]
-    _shuffle(rng, cells)
+    shuffle(rng, cells)
     for r, c in cells:
         puzzle[r][c] = None
         if solve(puzzle, n) is None:
